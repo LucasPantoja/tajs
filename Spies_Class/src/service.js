@@ -9,10 +9,9 @@ export default class Service {
     }
 
     #hashPassword(password) {
-        const hash = crypto.createHash('sha256')
-        hash.update(password)
-
-        return hash.digest('hex')
+        return crypto.createHash('sha256')
+                    .update(password)
+                    .digest('hex')
     }
 
     create({ username, password }) {
@@ -28,10 +27,13 @@ export default class Service {
     async read() {
         if (fsSync.existsSync(!this.#filename)) return []
 
-        const lines = (await fs.readFile(this.#filename, 'utf8')).split('\n').filter(line => !!line)
+        const lines = (await fs.readFile(this.#filename, 'utf8'))
+                            .split('\n')
+                            .filter(line => !!line)
 
         if (!lines.length) return []
 
-        return lines.map(line => JSON.parse(line)).map(({ password, ...rest}) => ({ ...rest }))
+        return lines.map(line => JSON.parse(line))
+                                .map(({ password, ...rest}) => ({ ...rest }))
     }
 }

@@ -2,62 +2,56 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import Service from '../src/service.js'
 import crypto from 'node:crypto'
 import fs from 'node:fs/promises'
-import fsSync from 'node:fs'
-
 
 describe('# Service Test Suite', () => {
     let _service
     const filename = 'testfile.ndjson'
-
-    beforeEach(() => {
-        _service = new Service({filename})
-    })
-    describe('# Read', () => {
-        it('Should return an empty array if the file is empty', async () => {
+    const MOCKED_HASH_PWD = 'hashedPassword'
+    
+    describe('# Create - Spies', () => {
+        beforeEach(() => {
             jest.spyOn(
-                fs,
-                fs.readFile.name
-            ).mockResolvedValue('')
-
-            const result = await _service.read()
-            expect(result).toStrictEqual([])
-        })
-
-        it('Should return an empty array if the file does not exists', async () => {
-            jest.spyOn(
-                fsSync,
-                fsSync.existsSync.name
-            ).mockReturnValue(false)
-
-            const result = await _service.read()
-            expect(result).toStrictEqual([])
-        })
-
-        it('Should return users without password , if file contains users', async () => {
-            const dbData = [
-                {
-                    username: 'user1',
-                    password: 'pass1',
-                    createdAt: new Date().toISOString()
-                },
-                {
-                    username: 'user2',
-                    password: 'pass2',
-                    createdAt: new Date().toISOString()
-                }
-            ]
-
-            const fileContents = dbData.map(item => JSON.stringify(item).concat('\n')).join('')
+                crypto,
+                crypto.createHash.name
+            ).mockReturnValue({
+                update: jest.fn().mockReturnThis(),
+                digest: jest.fn().mockReturnValue(MOCKED_HASH_PWD)
+            })
 
             jest.spyOn(
                 fs,
-                'readFile'
-            ).mockResolvedValue(fileContents)
+                fs.appendFile.name
+            ).mockResolvedValue()
 
-            const result = await _service.read()
+            _service = new Service({filename})
+        })
 
-            const expected = dbData.map(({ password, ...rest }) => ({ ...rest }))
-            expect(result).toEqual(expected)
+        it('Should call appendFile with right parameters', async () => {
+            const expectedCreatedAt = new Date().toISOString()
+            const data = {
+                username: 'user1',
+                password: 'pass1'
+            }
+
+            jest.spyOn(
+                Date.prototype,
+                Date.prototype.toISOString.name
+            ).mockReturnValue(expectedCreatedAt)
+
+            await _service.create(data)
+            expect(crypto.createHash).toHaveBeenCalledWith('sha256')
+
+            const hash = crypto.createHash('sha256')
+            expect(hash.update).toHaveBeenCalledWith(data.password)
+            expect(hash.digest).toHaveBeenCalledWith('hex')
+
+            const expected = JSON.stringify({
+                ...data,
+                createdAt: expectedCreatedAt,
+                password: MOCKED_HASH_PWD
+            }).concat('\n')
+
+            expect(fs.appendFile).toHaveBeenCalledWith(filename, expected)
         })
     })
 })

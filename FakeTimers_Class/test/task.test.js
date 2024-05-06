@@ -46,6 +46,6 @@ describe('# Task Test Suite', () => {
         expect(tasks.at(0).fn).toHaveBeenCalled()
         expect(tasks.at(1).fn).toHaveBeenCalled()
 
-
+        jest.useRealTimers()
     })
 })
